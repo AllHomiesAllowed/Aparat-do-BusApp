@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Aparat z adnotacjami</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #2e2e2e;
+    --text: #f0ede8;
+    --text-muted: #888;
+    --accent: #e8d5a3;
+    --red: #e05c5c;
+    --green: #5cb87a;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #fff;
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* ── START SCREEN ── */
+  #start-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100dvh;
+    background: #fff;
+  }
+
+  .btn-camera {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1.5px solid #c8cdd6;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-size: 15px;
+    font-weight: 400;
+    color: #1a1f2e;
+    font-family: system-ui, sans-serif;
+    cursor: pointer;
+  }
+
+  /* ── EDITOR SCREEN ── */
+  #editor-screen {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    max-width: 600px;
+    height: 100dvh;
+    position: fixed;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg);
+  }
+
+  /* Toolbar top — full width, justified */
+  #toolbar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 7px 10px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    width: 100%;
+  }
+
+  .tool-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    justify-content: center;
+  }
+  .tool-group:first-child { justify-content: flex-start; }
+  .tool-group:last-child  { justify-content: flex-end; }
+
+
+  .color-swatch {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.1s, border-color 0.1s;
+  }
+  .color-swatch.active { border-color: var(--text); transform: scale(1.18); }
+  .color-swatch:active { transform: scale(0.88); }
+
+  .tool-divider {
+    width: 1px; height: 18px;
+    background: var(--border);
+    flex-shrink: 0;
+    margin: 0 1px;
+  }
+
+  .stroke-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.1s;
+    height: 24px;
+  }
+  .stroke-btn.active {
+    background: var(--accent);
+    color: #1a1500;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .eraser-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 3px 7px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.1s;
+    white-space: nowrap;
+    height: 24px;
+  }
+  .eraser-btn.active { background: #3a2a2a; border-color: var(--red); color: var(--red); }
+
+  .undo-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text-muted);
+    font-size: 13px;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .emoji-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 14px;
+    width: 28px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.1s;
+  }
+  .emoji-btn.active { border-color: var(--accent); background: #2a2518; }
+
+  /* Canvas area */
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #111;
+    /* NO touch-action here — handled per-element */
+  }
+
+  #photo-layer {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+  }
+
+  #draw-canvas {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    touch-action: none;
+    cursor: crosshair;
+  }
+
+  #stickers-layer {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .sticker {
+    position: absolute;
+    cursor: grab;
+    pointer-events: all;
+    touch-action: none;
+    user-select: none;
+    line-height: 1;
+    transform-origin: center center;
+  }
+  .sticker.selected { outline: 2px dashed rgba(255,255,255,0.6); border-radius: 4px; }
+
+  #sticker-controls {
+    display: none;
+    position: absolute;
+    bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(20,20,20,0.92);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    padding: 6px 14px;
+    gap: 12px;
+    align-items: center;
+    z-index: 10;
+    white-space: nowrap;
+  }
+  #sticker-controls.visible { display: flex; }
+  .sc-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text);
+    font-size: 16px; width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .sc-label { font-size: 12px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+  .sc-delete { background: #3a2a2a; border-color: var(--red); color: var(--red); }
+
+  /* Bottom bar */
+  #toolbar-bottom {
+    display: flex;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  .btn-reject {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 12px 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-reject:active { border-color: var(--red); color: var(--red); }
+
+  /* Download button with SVG icon */
+  .btn-download-bar {
+    flex: 0 0 auto;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    color: var(--accent);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .btn-download-bar:active { border-color: var(--accent); background: #2a2518; }
+
+  .btn-approve {
+    flex: 2;
+    background: var(--green);
+    border: none;
+    border-radius: 100px;
+    color: #0a1f10;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 8px;
+    cursor: pointer;
+    transition: opacity 0.12s, transform 0.1s;
+  }
+  .btn-approve:active { opacity: 0.8; transform: scale(0.98); }
+
+  /* ── RESULT SCREEN ── */
+  #result-screen {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100dvh;
+    background: #ffffff;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .result-message {
+    font-size: 16px;
+    color: #333;
+    text-align: center;
+    line-height: 1.6;
+    font-family: 'DM Sans', sans-serif;
+    padding: 0 32px;
+  }
+
+  #file-input { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ── START ── -->
+<div id="start-screen">
+  <button class="btn-camera" onclick="startCamera()">
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M7.5 3L6 5H3a1 1 0 00-1 1v10a1 1 0 001 1h14a1 1 0 001-1V6a1 1 0 00-1-1h-3l-1.5-2h-5z" stroke="#1a1f2e" stroke-width="1.4" stroke-linejoin="round"/>
+      <circle cx="10" cy="10.5" r="3" stroke="#1a1f2e" stroke-width="1.4"/>
+    </svg>
+    Aparat
+  </button>
+</div>
+
+<!-- ── EDITOR ── -->
+<div id="editor-screen">
+  <div id="toolbar-top">
+    <!-- Group 1: colours -->
+    <div class="tool-group">
+      <div class="color-swatch active" style="background:#FF3B30" data-color="#FF3B30" onclick="setColor(this)"></div>
+      <div class="color-swatch" style="background:#30D158" data-color="#30D158" onclick="setColor(this)"></div>
+      <div class="color-swatch" style="background:#FFD60A" data-color="#FFD60A" onclick="setColor(this)"></div>
+      <div class="color-swatch" style="background:#0A84FF" data-color="#0A84FF" onclick="setColor(this)"></div>
+      <div class="color-swatch" style="background:#FFFFFF" data-color="#FFFFFF" onclick="setColor(this)"></div>
+    </div>
+    <div class="tool-divider"></div>
+    <!-- Group 2: stroke size -->
+    <div class="tool-group">
+      <button class="stroke-btn" data-size="3" onclick="setSize(this)">S</button>
+      <button class="stroke-btn active" data-size="5" onclick="setSize(this)">M</button>
+      <button class="stroke-btn" data-size="10" onclick="setSize(this)">L</button>
+    </div>
+    <div class="tool-divider"></div>
+    <!-- Group 3: eraser + undo -->
+    <div class="tool-group">
+      <button class="eraser-btn" id="eraser-btn" onclick="toggleEraser()">Gumka</button>
+      <button class="undo-btn" onclick="undo()">↩</button>
+    </div>
+    <div class="tool-divider"></div>
+    <!-- Group 4: emoji -->
+    <div class="tool-group">
+      <button class="emoji-btn" onclick="addSticker('🔊')">🔊</button>
+      <button class="emoji-btn" onclick="addSticker('🔔')">🔔</button>
+    </div>
+  </div>
+
+  <div id="canvas-wrap">
+    <img id="photo-layer" alt="">
+    <div id="stickers-layer"></div>
+    <canvas id="draw-canvas"></canvas>
+    <div id="sticker-controls">
+      <button class="sc-btn" onclick="resizeSelected(-8)">−</button>
+      <span class="sc-label" id="sc-size-label">40px</span>
+      <button class="sc-btn" onclick="resizeSelected(8)">＋</button>
+      <button class="sc-btn sc-delete" onclick="deleteSelected()">✕</button>
+    </div>
+  </div>
+
+  <div id="toolbar-bottom">
+    <button class="btn-reject" onclick="rejectPhoto()">Odrzuć</button>
+    <button class="btn-download-bar" onclick="downloadCurrent()">
+      <!-- Download icon matching the reference screenshot: arrow + tray -->
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 2 L8 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M5 7.5 L8 11 L11 7.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M2 12 L2 13.5 Q2 14 2.5 14 L13.5 14 Q14 14 14 13.5 L14 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      Pobierz
+    </button>
+    <button class="btn-approve" onclick="approvePhoto()">Załaduj</button>
+  </div>
+</div>
+
+<!-- ── RESULT ── -->
+<div id="result-screen">
+  <p class="result-message">Ten ekran oznacza, że zdjęcie zostało załadowane do programu</p>
+</div>
+
+<input type="file" id="file-input" accept="image/*" capture="environment">
+
+<script>
+  const state = {
+    color: '#FF3B30',
+    size: 5,
+    eraser: false,
+    // drawing only starts when touchstart/mousedown originates ON the canvas
+    drawing: false,
+    drawStartedOnCanvas: false,
+    paths: [],
+    currentPath: null,
+    photoDataUrl: null,
+    resultUrl: null,
+    stickers: [],
+    selectedSticker: null,
+  };
+
+  const fileInput       = document.getElementById('file-input');
+  const photoLayer      = document.getElementById('photo-layer');
+  const canvas          = document.getElementById('draw-canvas');
+  const ctx             = canvas.getContext('2d');
+  const stickersLayer   = document.getElementById('stickers-layer');
+  const stickerControls = document.getElementById('sticker-controls');
+
+  // ── Camera ──
+  function startCamera() { fileInput.click(); }
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      state.photoDataUrl = ev.target.result;
+      openEditor(state.photoDataUrl);
+    };
+    reader.readAsDataURL(file);
+    fileInput.value = '';
+  });
+
+  function openEditor(src) {
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'none';
+    document.getElementById('editor-screen').style.display = 'flex';
+    photoLayer.src = src;
+    photoLayer.onload = () => {
+      resizeCanvas();
+      state.paths = [];
+      stickersLayer.innerHTML = '';
+      state.stickers = [];
+      stickerControls.classList.remove('visible');
+      state.selectedSticker = null;
+      redraw();
+    };
+  }
+
+  function resizeCanvas() {
+    const wrap = document.getElementById('canvas-wrap');
+    canvas.width  = wrap.clientWidth;
+    canvas.height = wrap.clientHeight;
+    redraw();
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  // ── Drawing tools ──
+  function setColor(el) {
+    state.color  = el.dataset.color;
+    state.eraser = false;
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('eraser-btn').classList.remove('active');
+    deselectSticker();
+  }
+
+  function setSize(el) {
+    state.size = parseInt(el.dataset.size);
+    document.querySelectorAll('.stroke-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function toggleEraser() {
+    // Eraser can only be turned ON here; to turn off, pick a colour or emoji
+    if (state.eraser) return;
+    state.eraser = true;
+    document.getElementById('eraser-btn').classList.add('active');
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+    deselectSticker();
+  }
+
+  function undo() {
+    if (state.paths.length > 0) { state.paths.pop(); redraw(); }
+  }
+
+  // ── Draw: outline pass first (all paths), then colour pass (all paths)
+  //    This means outlines never cut across colour strokes of other paths.
+  function redraw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Pass 1: white outlines for all non-eraser paths
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = 'rgba(255,255,255,0.78)';
+    ctx.lineCap  = 'round';
+    ctx.lineJoin = 'round';
+    for (const path of state.paths) {
+      if (path.eraser) continue;
+      ctx.lineWidth = path.size + 3.5;
+      _tracePath(ctx, path);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Pass 2: colours + eraser
+    for (const path of state.paths) {
+      _strokePath(ctx, path, 1, 0);
+    }
+  }
+
+  // Draw a single path at a given scale/offset (used for both live preview and final export)
+  function _strokePath(c, path, scale, offsetOutline) {
+    // offsetOutline = extra lineWidth for outline; 0 = colour pass only
+    c.save();
+    if (path.eraser) {
+      c.globalCompositeOperation = 'destination-out';
+      c.strokeStyle = 'rgba(0,0,0,1)';
+      c.lineWidth   = path.size * scale;
+    } else {
+      c.globalCompositeOperation = 'source-over';
+      c.strokeStyle = path.color;
+      c.lineWidth   = path.size * scale;
+    }
+    c.lineCap  = 'round';
+    c.lineJoin = 'round';
+    _tracePath(c, path);
+    c.stroke();
+    c.restore();
+  }
+
+  function _tracePath(c, path) {
+    if (path.points.length < 1) return;
+    c.beginPath();
+    c.moveTo(path.points[0].x, path.points[0].y);
+    for (let i = 1; i < path.points.length; i++) {
+      const prev = path.points[i - 1];
+      const curr = path.points[i];
+      c.quadraticCurveTo(prev.x, prev.y, (prev.x + curr.x) / 2, (prev.y + curr.y) / 2);
+    }
+  }
+
+  // Live preview of current in-progress stroke (before it's committed to state.paths)
+  function drawLiveStroke() {
+    if (!state.currentPath) return;
+    redraw(); // redraw all committed paths cleanly
+
+    // Draw live stroke on top — outline first then colour
+    if (!state.currentPath.eraser) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = 'rgba(255,255,255,0.78)';
+      ctx.lineWidth   = state.currentPath.size + 3.5;
+      ctx.lineCap     = 'round';
+      ctx.lineJoin    = 'round';
+      _tracePath(ctx, state.currentPath);
+      ctx.stroke();
+      ctx.restore();
+    }
+    _strokePath(ctx, state.currentPath, 1, 0);
+  }
+
+  // ── Touch / Mouse — only draws when originating on canvas ──
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const src = e.touches ? e.touches[0] : e;
+    return {
+      x: (src.clientX - rect.left) * scaleX,
+      y: (src.clientY - rect.top)  * scaleY,
+    };
+  }
+
+  // Hit-test: is the client point inside a sticker element?
+  function stickerAtPoint(clientX, clientY) {
+    for (let i = state.stickers.length - 1; i >= 0; i--) {
+      const r = state.stickers[i].el.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right &&
+          clientY >= r.top  && clientY <= r.bottom) {
+        return state.stickers[i];
+      }
+    }
+    return null;
+  }
+
+  // Only attach start on canvas itself
+  canvas.addEventListener('touchstart', (e) => {
+    const touch = e.touches[0];
+    const hit = stickerAtPoint(touch.clientX, touch.clientY);
+    if (hit) {
+      // Route to sticker drag
+      e.preventDefault();
+      startStickerDrag(hit, touch.clientX, touch.clientY);
+      return;
+    }
+    e.preventDefault();
+    state.drawStartedOnCanvas = true;
+    state.drawing = true;
+    deselectSticker();
+    const pos = getPos(e);
+    state.currentPath = {
+      color:  state.eraser ? null : state.color,
+      size:   state.eraser ? state.size * 4 : state.size,
+      eraser: state.eraser,
+      points: [pos],
+    };
+  }, { passive: false });
+
+  canvas.addEventListener('mousedown', (e) => {
+    const hit = stickerAtPoint(e.clientX, e.clientY);
+    if (hit) {
+      startStickerDrag(hit, e.clientX, e.clientY);
+      return;
+    }
+    state.drawStartedOnCanvas = true;
+    state.drawing = true;
+    deselectSticker();
+    const pos = getPos(e);
+    state.currentPath = {
+      color:  state.eraser ? null : state.color,
+      size:   state.eraser ? state.size * 4 : state.size,
+      eraser: state.eraser,
+      points: [pos],
+    };
+  });
+
+  // ── Stickers ──
+  let stickerDrag = null; // { data, startX, startY, origX, origY }
+
+  function startStickerDrag(data, clientX, clientY) {
+    selectSticker(data);
+    stickerDrag = { data, startX: clientX, startY: clientY, origX: data.x, origY: data.y };
+  }
+
+  document.addEventListener('touchmove', (e) => {
+    if (stickerDrag) {
+      e.preventDefault();
+      const src = e.touches[0];
+      stickerDrag.data.x = stickerDrag.origX + (src.clientX - stickerDrag.startX);
+      stickerDrag.data.y = stickerDrag.origY + (src.clientY - stickerDrag.startY);
+      stickerDrag.data.el.style.left = stickerDrag.data.x + 'px';
+      stickerDrag.data.el.style.top  = stickerDrag.data.y + 'px';
+      return;
+    }
+    if (!state.drawing || !state.drawStartedOnCanvas || !state.currentPath) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect  = canvas.getBoundingClientRect();
+    if (touch.clientX < rect.left || touch.clientX > rect.right ||
+        touch.clientY < rect.top  || touch.clientY > rect.bottom) {
+      commitStroke(); return;
+    }
+    const scaleX = canvas.width  / rect.width;
+    const scaleY = canvas.height / rect.height;
+    state.currentPath.points.push({
+      x: (touch.clientX - rect.left) * scaleX,
+      y: (touch.clientY - rect.top)  * scaleY,
+    });
+    drawLiveStroke();
+  }, { passive: false });
+
+  document.addEventListener('mousemove', (e) => {
+    if (stickerDrag) {
+      stickerDrag.data.x = stickerDrag.origX + (e.clientX - stickerDrag.startX);
+      stickerDrag.data.y = stickerDrag.origY + (e.clientY - stickerDrag.startY);
+      stickerDrag.data.el.style.left = stickerDrag.data.x + 'px';
+      stickerDrag.data.el.style.top  = stickerDrag.data.y + 'px';
+      return;
+    }
+    if (!state.drawing || !state.drawStartedOnCanvas || !state.currentPath) return;
+    const rect = canvas.getBoundingClientRect();
+    if (e.clientX < rect.left || e.clientX > rect.right ||
+        e.clientY < rect.top  || e.clientY > rect.bottom) {
+      commitStroke(); return;
+    }
+    const scaleX = canvas.width  / rect.width;
+    const scaleY = canvas.height / rect.height;
+    state.currentPath.points.push({
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top)  * scaleY,
+    });
+    drawLiveStroke();
+  });
+
+  document.addEventListener('touchend', () => {
+    stickerDrag = null;
+    if (state.drawing) commitStroke();
+  });
+  document.addEventListener('mouseup', () => {
+    stickerDrag = null;
+    if (state.drawing) commitStroke();
+  });
+
+  function commitStroke() {
+    state.drawing = false;
+    state.drawStartedOnCanvas = false;
+    if (state.currentPath && state.currentPath.points.length > 0) {
+      state.paths.push(state.currentPath);
+    }
+    state.currentPath = null;
+    redraw();
+  }
+
+  function addSticker(emoji) {
+    const wrap = document.getElementById('canvas-wrap');
+    const cx = wrap.clientWidth  / 2;
+    const cy = wrap.clientHeight / 2;
+    const el = document.createElement('div');
+    el.className   = 'sticker';
+    el.textContent = emoji;
+    el.style.fontSize = '40px';
+    el.style.left = (cx - 20) + 'px';
+    el.style.top  = (cy - 20) + 'px';
+    const data = { el, emoji, x: cx - 20, y: cy - 20, size: 40 };
+    state.stickers.push(data);
+    stickersLayer.appendChild(el);
+    selectSticker(data);
+  }
+
+  function selectSticker(data) {
+    deselectSticker();
+    state.selectedSticker = data;
+    data.el.classList.add('selected');
+    stickerControls.classList.add('visible');
+    document.getElementById('sc-size-label').textContent = data.size + 'px';
+  }
+
+  function deselectSticker() {
+    if (state.selectedSticker) {
+      state.selectedSticker.el.classList.remove('selected');
+      state.selectedSticker = null;
+    }
+    stickerControls.classList.remove('visible');
+  }
+
+  function resizeSelected(delta) {
+    if (!state.selectedSticker) return;
+    const s = state.selectedSticker;
+    s.size = Math.max(16, Math.min(120, s.size + delta));
+    s.el.style.fontSize = s.size + 'px';
+    document.getElementById('sc-size-label').textContent = s.size + 'px';
+  }
+
+  function deleteSelected() {
+    if (!state.selectedSticker) return;
+    stickersLayer.removeChild(state.selectedSticker.el);
+    state.stickers = state.stickers.filter(x => x !== state.selectedSticker);
+    state.selectedSticker = null;
+    stickerControls.classList.remove('visible');
+  }
+
+  document.getElementById('canvas-wrap').addEventListener('click', (e) => {
+    if (e.target === canvas || e.target === photoLayer) deselectSticker();
+  });
+
+  function buildMergedImage(onDone) {
+    // Always build from the stored data URL — never from the <img> element
+    // This guarantees the canvas is never tainted on iOS Safari
+    const src = state.photoDataUrl;
+    if (!src) return;
+
+    const baseImg = new Image();
+    baseImg.onload = () => {
+      const merged = document.createElement('canvas');
+      merged.width  = baseImg.naturalWidth;
+      merged.height = baseImg.naturalHeight;
+      const mctx = merged.getContext('2d');
+      mctx.drawImage(baseImg, 0, 0);
+
+      const scaleX = merged.width  / canvas.width;
+      const scaleY = merged.height / canvas.height;
+      const scale  = (scaleX + scaleY) / 2;
+
+      const scaledPaths = state.paths.map(path => ({
+        ...path,
+        size: path.size * scale,
+        points: path.points.map(p => ({ x: p.x * scaleX, y: p.y * scaleY })),
+      }));
+
+      // Pass 1: white outlines
+      mctx.save();
+      mctx.globalCompositeOperation = 'source-over';
+      mctx.strokeStyle = 'rgba(255,255,255,0.78)';
+      mctx.lineCap  = 'round';
+      mctx.lineJoin = 'round';
+      for (const path of scaledPaths) {
+        if (path.eraser) continue;
+        mctx.lineWidth = path.size + 3.5 * scale;
+        _tracePath(mctx, path);
+        mctx.stroke();
+      }
+      mctx.restore();
+
+      // Pass 2: colours + eraser
+      for (const path of scaledPaths) {
+        _strokePath(mctx, path, 1, 0);
+      }
+
+      // Stickers
+      for (const s of state.stickers) {
+        mctx.font = (s.size * scale) + 'px serif';
+        mctx.textBaseline = 'top';
+        mctx.fillText(s.emoji, s.x * scaleX, s.y * scaleY);
+      }
+
+      merged.toBlob(blob => onDone(blob, merged), 'image/jpeg', 0.92);
+    };
+    baseImg.src = src;
+  }
+
+  // ── Approve / Reject / Download ──
+  function approvePhoto() {
+    document.getElementById('editor-screen').style.display = 'none';
+    document.getElementById('result-screen').style.display = 'flex';
+  }
+
+  function rejectPhoto() {
+    document.getElementById('editor-screen').style.display = 'none';
+    document.getElementById('start-screen').style.display  = 'flex';
+    stickersLayer.innerHTML = '';
+    state.stickers = [];
+    state.paths = [];
+    deselectSticker();
+  }
+
+  function downloadCurrent() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    if (isIOS) {
+      // iOS Safari: open window synchronously (required by user-gesture policy),
+      // then build the image and inject a data URL directly into the new window's DOM.
+      // We do NOT use blob URLs — they are not accessible across browsing contexts.
+      const iosWin = window.open('', '_blank');
+      if (iosWin) {
+        iosWin.document.write(
+          '<html><head><meta name="viewport" content="width=device-width,initial-scale=1">' +
+          '<style>body{margin:0;background:#000;display:flex;align-items:center;' +
+          'justify-content:center;min-height:100vh;}' +
+          'p{color:#aaa;font-family:sans-serif;font-size:15px;}</style></head>' +
+          '<body><p>Ładowanie…</p></body></html>'
+        );
+        iosWin.document.close();
+
+        buildMergedImage((blob, mergedCanvas) => {
+          // Use toDataURL on the merged canvas — same context, no taint issues
+          const dataUrl = mergedCanvas.toDataURL('image/jpeg', 0.92);
+
+          // Write the image directly into the already-open window
+          const img = iosWin.document.createElement('img');
+          img.src = dataUrl;
+          img.style.cssText = 'max-width:100%;display:block;';
+
+          const p = iosWin.document.createElement('p');
+          p.style.cssText = 'color:#fff;font-family:sans-serif;font-size:14px;' +
+                            'padding:14px 20px;text-align:center;line-height:1.5;';
+          p.innerHTML = 'Przytrzymaj zdjęcie → <strong>Dodaj do Zdjęć</strong>';
+
+          iosWin.document.body.style.cssText =
+            'margin:0;background:#111;display:flex;flex-direction:column;align-items:center;';
+          iosWin.document.body.innerHTML = '';
+          iosWin.document.body.appendChild(p);
+          iosWin.document.body.appendChild(img);
+        });
+      }
+    } else {
+      // Desktop: standard download via blob URL
+      buildMergedImage((blob) => {
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href     = objectUrl;
+        a.download = 'adnotacja-' + Date.now() + '.jpg';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      });
+    }
+  }
+</script>
+</body>
+</html>
