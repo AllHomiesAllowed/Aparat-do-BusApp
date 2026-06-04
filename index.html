@@ -819,8 +819,25 @@
 
   // ── Approve / Reject / Download ──
   function approvePhoto() {
-    document.getElementById('editor-screen').style.display = 'none';
-    document.getElementById('result-screen').style.display = 'flex';
+    buildMergedImage((blob, mergedCanvas) => {
+      const dataUrl = mergedCanvas.toDataURL('image/jpeg', 0.92);
+
+      // If opened inside an iframe or by window.open() from BusApp,
+      // send the image back via postMessage and close/hide self.
+      const opener = window.opener || window.parent;
+      const isEmbedded = window.opener || (window.parent !== window);
+      if (isEmbedded) {
+        opener.postMessage({ type: 'APARAT_PHOTO', dataUrl }, '*');
+        // If opened as popup, close this window
+        if (window.opener) window.close();
+        // If in iframe, apka just goes silent — BusApp will hide the iframe
+        return;
+      }
+
+      // Standalone fallback (direct access, not embedded)
+      document.getElementById('editor-screen').style.display = 'none';
+      document.getElementById('result-screen').style.display = 'flex';
+    });
   }
 
   function rejectPhoto() {
