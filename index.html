@@ -903,6 +903,12 @@
       });
     }
   }
+
+  // Jeśli apka jest osadzona w iframe (np. w BusApp) — uruchom aparat od razu,
+  // z pominięciem ekranu startowego. Użytkownik już kliknął "Aparat" w BusApp.
+  if (window.parent !== window) {
+    startCamera();
+  }
 </script>
 </body>
 </html>
