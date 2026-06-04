@@ -339,9 +339,7 @@
     activeSlot = null;
   }
 
-  document.getElementById('camera-overlay').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('camera-overlay')) closeCamera();
-  });
+  // Overlay zamyka się tylko przez postMessage z apki (Załaduj lub Odrzuć)
 
   window.addEventListener('message', (e) => {
     if (!e.data || e.data.type !== 'APARAT_PHOTO' || activeSlot === null) return;

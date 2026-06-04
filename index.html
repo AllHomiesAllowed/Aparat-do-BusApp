@@ -297,6 +297,19 @@
 </head>
 <body>
 
+<!-- ── TAP OVERLAY — jedno tapnięcie odpala aparat ── -->
+<div id="tap-overlay" onclick="document.getElementById('file-input').click(); this.style.display='none';"
+  style="display:none;position:fixed;inset:0;z-index:999;background:var(--bg);
+         align-items:center;justify-content:center;flex-direction:column;gap:16px;cursor:pointer;">
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#e8d5a3" stroke-width="1.4">
+    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+    <circle cx="12" cy="13" r="4"/>
+  </svg>
+  <span style="color:#e8d5a3;font-family:system-ui,sans-serif;font-size:16px;font-weight:500;">
+    Dotknij aby zrobić zdjęcie
+  </span>
+</div>
+
 <!-- ── EDITOR ── -->
 <div id="editor-screen">
   <div id="toolbar-top">
@@ -412,8 +425,12 @@
     };
   }
 
-  // Otwórz aparat od razu po załadowaniu strony
-  window.addEventListener('load', () => { fileInput.click(); });
+  // Safari wymaga bezpośredniej akcji użytkownika żeby otworzyć aparat.
+  // Pokazujemy pełnoekranową nakładkę — jedno tapnięcie odpala aparat.
+  window.addEventListener('load', () => {
+    const overlay = document.getElementById('tap-overlay');
+    overlay.style.display = 'flex';
+  });
 
   function resizeCanvas() {
     const wrap = document.getElementById('canvas-wrap');
