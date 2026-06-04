@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BusApp — Demo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #f4f5f7;
+    color: #1a1f2e;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── Top bar (F-1, badges, Anuluj/Zapisz) ── */
+  #topbar {
+    background: #fff;
+    border-bottom: 1px solid #e2e5ea;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .fault-id { font-size: 22px; font-weight: 700; }
+  .badge {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .badge-orange { background: #f97316; }
+  .badge-yellow { background: #eab308; color: #fff; }
+  .topbar-actions { margin-left: auto; display: flex; gap: 10px; }
+  .btn-cancel {
+    background: transparent;
+    border: 1px solid #e2e5ea;
+    border-radius: 6px;
+    padding: 8px 20px;
+    font-size: 14px;
+    cursor: pointer;
+    color: #1a1f2e;
+  }
+  .btn-save {
+    background: #ef4444;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  /* ── Tabs ── */
+  #tabs {
+    background: #fff;
+    border-bottom: 1px solid #e2e5ea;
+    padding: 0 28px;
+    display: flex;
+    gap: 4px;
+  }
+  .tab {
+    padding: 13px 16px;
+    font-size: 14px;
+    color: #6b7280;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .tab.active {
+    color: #1a1f2e;
+    border-bottom-color: #1a1f2e;
+    font-weight: 600;
+  }
+
+  /* ── Content ── */
+  #content { padding: 28px; }
+
+  .photo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .photo-card {
+    background: #fff;
+    border: 1px solid #e2e5ea;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .photo-card-title {
+    padding: 14px 16px 10px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .photo-slot {
+    margin: 0 16px;
+    aspect-ratio: 4/3;
+    background: #f8f9fb;
+    border: 1px solid #e2e5ea;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .photo-slot img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: none;
+  }
+  .photo-slot img.loaded { display: block; }
+  .slot-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: #c0c5d0;
+  }
+
+  .photo-actions {
+    padding: 12px 16px;
+    display: flex;
+    gap: 8px;
+  }
+  .btn-action {
+    flex: 1;
+    background: #fff;
+    border: 1px solid #e2e5ea;
+    border-radius: 6px;
+    padding: 9px 0;
+    font-size: 13px;
+    color: #1a1f2e;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.1s;
+  }
+  .btn-action:hover { background: #f4f5f7; }
+  .btn-delete {
+    width: 36px;
+    flex: 0 0 36px;
+    background: #fff;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    color: #ef4444;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: background 0.1s;
+  }
+  .btn-delete:hover { background: #fff5f5; }
+
+  /* Additional */
+  .section-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+  .additional-empty {
+    background: #fff;
+    border: 1px solid #e2e5ea;
+    border-radius: 10px;
+    padding: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: #a0a8bc;
+    font-size: 14px;
+  }
+
+  #camera-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+  }
+  #camera-overlay.visible { display: block; }
+  #camera-frame {
+    width: 100vw;
+    height: 100vh;
+    border: none;
+    display: block;
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 32px; left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    background: #1a1f2e;
+    color: #fff;
+    padding: 12px 26px;
+    border-radius: 30px;
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 200;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div id="topbar">
+  <span class="fault-id">F-1</span>
+  <span class="badge badge-orange">Poważna</span>
+  <span class="badge badge-yellow">Otwarta</span>
+  <div class="topbar-actions">
+    <button class="btn-cancel">Anuluj</button>
+    <button class="btn-save">Zapisz</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div id="tabs">
+  <div class="tab">Szczegóły</div>
+  <div class="tab active">Zdjęcia</div>
+  <div class="tab">Zewnętrzna</div>
+  <div class="tab">Wewnętrzna</div>
+  <div class="tab">Logi</div>
+</div>
+
+<!-- Content -->
+<div id="content">
+  <div class="photo-grid">
+
+    <!-- Slot 1 -->
+    <div class="photo-card">
+      <div class="photo-card-title">Zdjęcie szczegółowe</div>
+      <div class="photo-slot">
+        <img id="img-1" alt="">
+        <div class="slot-empty" id="empty-1">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+      </div>
+      <div class="photo-actions">
+        <button class="btn-action">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Prześlij
+        </button>
+        <button class="btn-action" onclick="openCamera(1)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Aparat
+        </button>
+        <button class="btn-delete" onclick="clearSlot(1)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Slot 2 -->
+    <div class="photo-card">
+      <div class="photo-card-title">Zdjęcie przeglądowe</div>
+      <div class="photo-slot">
+        <img id="img-2" alt="">
+        <div class="slot-empty" id="empty-2">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+      </div>
+      <div class="photo-actions">
+        <button class="btn-action">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Prześlij
+        </button>
+        <button class="btn-action" onclick="openCamera(2)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Aparat
+        </button>
+        <button class="btn-delete" onclick="clearSlot(2)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Slot 3 -->
+    <div class="photo-card">
+      <div class="photo-card-title">Zdjęcie po naprawie</div>
+      <div class="photo-slot">
+        <img id="img-3" alt="">
+        <div class="slot-empty" id="empty-3">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+      </div>
+      <div class="photo-actions">
+        <button class="btn-action">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Prześlij
+        </button>
+        <button class="btn-action" onclick="openCamera(3)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Aparat
+        </button>
+        <button class="btn-delete" onclick="clearSlot(3)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-title">Dodatkowe zdjęcia</div>
+  <div class="additional-empty">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Brak dodatkowych zdjęć
+  </div>
+</div>
+
+<!-- Camera overlay -->
+<div id="camera-overlay">
+  <iframe id="camera-frame" src="" allow="camera"></iframe>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const APARAT_URL = 'https://allhomiesallowed.github.io/Aparat-do-BusApp/';
+  let activeSlot = null;
+
+  function openCamera(slot) {
+    activeSlot = slot;
+    document.getElementById('camera-frame').src = APARAT_URL;
+    document.getElementById('camera-overlay').classList.add('visible');
+  }
+
+  function closeCamera() {
+    document.getElementById('camera-overlay').classList.remove('visible');
+    setTimeout(() => { document.getElementById('camera-frame').src = ''; }, 300);
+    activeSlot = null;
+  }
+
+  document.getElementById('camera-overlay').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('camera-overlay')) closeCamera();
+  });
+
+  window.addEventListener('message', (e) => {
+    if (!e.data || e.data.type !== 'APARAT_PHOTO' || activeSlot === null) return;
+    const img   = document.getElementById('img-' + activeSlot);
+    const empty = document.getElementById('empty-' + activeSlot);
+    img.src = e.data.dataUrl;
+    img.classList.add('loaded');
+    empty.style.display = 'none';
+    closeCamera();
+    const labels = ['', 'szczegółowego', 'przeglądowego', 'po naprawie'];
+    showToast('✓ Zdjęcie załadowane — ' + (labels[activeSlot] || activeSlot));
+  });
+
+  function clearSlot(n) {
+    const img   = document.getElementById('img-' + n);
+    const empty = document.getElementById('empty-' + n);
+    img.src = '';
+    img.classList.remove('loaded');
+    empty.style.display = '';
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+</script>
+</body>
+</html>
